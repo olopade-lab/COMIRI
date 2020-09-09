@@ -9,6 +9,8 @@ from parsl.providers import TorqueProvider
 from parsl.addresses import address_by_hostname
 from parsl import python_app
 
+# NEED to check which chain for comparing the two cdr3 sequences
+
 
 # IMPORTANT: need to convert all nulls to empty 
 # Check whether I should always include the 
