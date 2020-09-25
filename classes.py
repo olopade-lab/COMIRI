@@ -4,6 +4,7 @@ import os
 from wcmatch import glob as wcmatchglob
 from parsl import bash_app
 import json
+import multiprocessing
 
 
 # TCR,BCR-heavy,BCR-light
@@ -28,6 +29,17 @@ class Pipeline:
         self.run_mode = run_mode
         self.receptor = receptor
         self.single_end = single_end
+        self.rescue_num = 2
+        self.docker_dict = {
+            "MiXCR": "milaboratory/mixcr@sha256:26284253404ccc467ca39c60660b80eabe6f3bfa24063fc454860fa98c646c92",
+            "TRUST3": "mgibio/trust@sha256:283c1102334a0c3fb51dd25b6cd053ece28bc30748045984ce190778588c7242",
+            "TRUST4": "",
+            "CATT": "guobioinfolab/catt:1.8.1",
+            "VDJer": "",
+            "STAR": "mgibio/star:2.7.0f",
+            "bamtools": "",
+            "samtools": "mgibio/samtools:1.9"
+        }
 
     def time_stamp(self):
         now = datetime.now()
@@ -70,7 +82,7 @@ class Pipeline:
                 if len(fastq_specific) > 2:
                     print(f"More than 2 matching fastq files for sample {sample} in paired_end mode. Sample ignored.")
                 elif len(fastq_specific) < 2:
-                    print(f"Only than 1 matching fastq files for sample {sample} in paired_end mode. Sample ignored.")
+                    print(f"Only than 1 matching fastq file for sample {sample} in paired_end mode. Sample ignored.")
                 else:
                     self.fastq_dict[sample] = fastq_specific
     
@@ -120,3 +132,44 @@ class Genome:
     
     def __setstate__(self, d):
         self.__dict__ = d
+
+def get_threads(pipeline, program):
+    if program in pipeline.config_dict.keys():
+        if "threads" in pipeline.config_dict[program].keys():
+            num_threads = pipeline.config_dict[program]["threads"]
+        else:
+            num_threads = os.environ.get('PARSL_CORES', multiprocessing.cpu_count())
+    else:
+        num_threads = os.environ.get('PARSL_CORES', multiprocessing.cpu_count())
+    return num_threads
+
+def get_command(pipeline, program):
+    if program in pipeline.config_dict.keys():
+        if "command" in pipeline.config_dict[program].keys():
+            command = pipeline.config_dict[program]["command"] + " &"
+        else:
+            command = ""
+    else:
+        command = ""
+    return command
+
+def get_path(pipeline, program):
+    dict_path = {
+        "MiXCR": "mixcr",
+        "TRUST3": "trust",
+        "TRUST4": "./run-trust4",
+        "CATT": "catt",
+        "VDJer": "vdjer",
+        "STAR": "STAR",
+        "samtools": "samtools",
+        "bamtools": "bamtools"
+    }
+
+    if program in pipeline.config_dict.keys():
+        if "path" in pipeline.config_dict[program].keys():
+            path = pipeline.config_dict[program]["path"]
+        else:
+            path = dict_path[program]
+    else:
+        path = dict_path[program]
+    return path
