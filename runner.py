@@ -18,6 +18,8 @@ from parsl import load, python_app, bash_app
 # Add --noMerging and --noConsensus flags (?)
 
 
+# Add defaults: https://stackoverflow.com/questions/12151306/argparse-way-to-include-default-values-in-help
+
 def main():
     '''
     Extracts all the parameters from the command line and creates a Pipeline
@@ -38,14 +40,18 @@ def main():
                         default=['TCR', 'BCR-heavy', 'BCR-light'], choices=['TCR', 'BCR-heavy', 'BCR-light'], help='''List of receptors to extract''')
     parser.add_argument('-c', '--config', type=str, default='local', help='''Config file to use for running Parsl''')
     # Make json optional i.e. doesn't look for one if not used
-    parser.add_argument('-j', '--json', type=str, default='local', help='''JSON file to use for running Parsl''')
+    parser.add_argument('-j', '--json', type=str, default = None, help='''JSON file to use for running Parsl''')
     parser.add_argument('-s', '--single_end', action='store_true', help='''Run in single-end mode''')
     args = parser.parse_args()
+    print(args)
     load_config(args.config)
     pipeline = classes.Pipeline(args.run_program, args.run_mode, args.receptor, args.single_end)
     genome = classes.Genome(args.genome_version)
     pipeline.set_output_dir(args.output_dir)
     pipeline.set_fastq_dict(args.fastq_path)
+    # Fix JSON input: not required
+
+    pipeline.extract_json(args.json)
 
     if ('TRUST3' in pipeline.run_program or 'TRUST4' in pipeline.run_program 
         or 'VDJer' in pipeline.run_program):
@@ -57,7 +63,7 @@ def main():
         genome_download_future = []
     
     check_attributes(genome, pipeline)
-    run_pipeline2(pipeline, genome, genome_download_future)
+    run_pipeline(pipeline, genome, genome_download_future)
 
 def load_config(config_name):
     base_dir = '/'.join(os.path.abspath(__file__).split('/')[:-1])
@@ -105,7 +111,9 @@ def make_bash_app(pipeline, func_name):
 
 # CHECK FOR FINAL FILE IN EACH CASE!!
 
-def run_pipeline2(pipeline, genome, download_future):
+# FIX Deleting files!! <- remove directories also
+
+def run_pipeline(pipeline, genome, download_future):
     '''
     Orchestrates the entire TCR/BCR pipeline for each sample (either input from the 
     command line or inferred from the fastq/bam directories). Each program is only 
@@ -121,14 +129,15 @@ def run_pipeline2(pipeline, genome, download_future):
         sample_output = pipeline.output_dir + sample + "/"
         if not os.path.isdir(sample_output):
             os.mkdir(sample_output)
+        # STAR_align(pipeline, genome, sample_name, inputs=[], VDJer=False)
         if ('TRUST3' in pipeline.run_program or 'TRUST4' in pipeline.run_program):
             os.makedirs(sample_output + "STAR_align/", exist_ok=True)
             align_dir = sample_output + "STAR_align/" + genome.version
             if not os.path.isdir(align_dir):
                 os.mkdir(align_dir)
-                align_future = [programs.STAR_align(pipeline, genome, sample, download_future)]
+                align_future = [programs.STAR_align(pipeline, genome, sample, inputs=download_future)]
             elif not os.listdir(align_dir):
-                align_future = [programs.STAR_align(pipeline, genome, sample, download_future)]
+                align_future = [programs.STAR_align(pipeline, genome, sample, inputs=download_future)]
             else:
                 if os.path.isfile(align_dir+"/"+sample+".Aligned.sortedByCoord.out.bam"):
                     print(f"Non-empty {genome.version} STAR alignment directory for {sample}: alignment already run.")
@@ -137,15 +146,15 @@ def run_pipeline2(pipeline, genome, download_future):
                     align_files = glob.glob(align_dir+"/*")
                     for rm_file in align_files:
                         os.remove(rm_file)
-                    align_future = [programs.STAR_align(pipeline, genome, sample, download_future)]
+                    align_future = [programs.STAR_align(pipeline, genome, sample, inputs=download_future)]
         if 'VDJer' in pipeline.run_program:
             if genome.version != "hg38":
                 VDJer_align_dir = sample_output + "STAR_align/hg38"
                 if not os.path.isdir(VDJer_align_dir):
                     os.mkdir(VDJer_align_dir)
-                    VDJer_align_future = [programs.STAR_align(pipeline, genome, sample, download_future, True)]
+                    VDJer_align_future = [programs.STAR_align(pipeline, genome, sample, inputs=download_future, VDJer=True)]
                 elif not os.listdir(VDJer_align_dir):
-                    VDJer_align_future = [programs.STAR_align(pipeline, genome, sample, download_future, True)]
+                    VDJer_align_future = [programs.STAR_align(pipeline, genome, sample, inputs=download_future, VDJer=True)]
                 else:
                     if os.path.isfile(VDJer_align_dir+"/"+sample+".Aligned.sortedByCoord.out.bam"):
                         print(f"Non-empty hg38 STAR alignment directory for {sample}: alignment already run.")
@@ -154,7 +163,7 @@ def run_pipeline2(pipeline, genome, download_future):
                         VDJer_align_files = glob.glob(VDJer_align_dir+"/*")
                         for rm_file in VDJer_align_files:
                             os.remove(rm_file)
-                        VDJer_align_future = [programs.STAR_align(pipeline, genome, sample, download_future, True)]
+                        VDJer_align_future = [programs.STAR_align(pipeline, genome, sample, inputs=download_future, VDJer=True)]
             else:
                 VDJer_align_future = align_future
             
@@ -168,7 +177,7 @@ def run_pipeline2(pipeline, genome, download_future):
             if dict_subdirectory[program]:
                 if not os.path.isdir(sample_output + program):
                     os.mkdir(sample_output + program)
-                run_parameters = list_run_parameters(pipeline, sample_output+"/"+program+"/")
+                run_parameters = list_run_parameters(pipeline, sample_output+"/"+program+"/", program == "CATT")
                 if program == "MiXCR":
                     # Check if main MiXCR dir is not empty
                     # Make more modular ?? Check for specific files ?
@@ -194,49 +203,54 @@ def run_pipeline2(pipeline, genome, download_future):
                     if not rerun_exportClones:
                         # rerunning because previous files have been modified
                         for parameter in run_parameters:
-                            programs.MiXCR_exportClones(pipeline, genome, parameter, exportClones_input)
+                            programs.MiXCR_exportClones(pipeline, genome, sample, parameter, inputs=exportClones_input)
                     else:
                         for parameter in pipeline.receptor:
                             mixcr_files = glob.glob(sample_output+"/MiXCR/"+parameter+"/*")
                             for rm_file in mixcr_files:
                                 os.remove(rm_file)
-                            programs.MiXCR_exportClones(pipeline, genome, parameter, exportClones_input)
+                            programs.MiXCR_exportClones(pipeline, genome, sample, parameter, inputs=exportClones_input)
                 if program == "TRUST3":
-                    bam_file = (pipeline.bam_dir + sample + "/" + sample
-                                + ".Aligned.sortedByCoord.out.bam")
+                    bam_file = align_dir + "/" + sample + ".Aligned.sortedByCoord.out.bam"
                     if not os.path.isfile(bam_file + ".bai"):
                         program_input = [programs.samtools_index(pipeline, bam_file, "index", inputs=program_input)]
                 if program != "MiXCR":
                     program_function = getattr(programs, program)
                     for parameter in run_parameters:
                         program_function(pipeline, genome, sample, parameter, inputs=program_input)
-        else:
-            if not os.path.isdir(sample_output + program):
-                    os.mkdir(sample_output + program)
-                    program_function(pipeline, genome, sample, inputs=program_input)
-            elif not os.listdir(sample_output + program):
-                program_function(pipeline, genome, sample, inputs=program_input)
             else:
-                if program == "TRUST4":
-                    output_file = sample+"_report.tsv"
-                if os.path.isfile(sample_output+program+"/"+output_file):
-                    print(f"Non-empty {program} directory for {sample}: {program} already run.")
-                else:
-                    all_output_files = glob.glob(sample_output+program+"/*")
-                    for rm_file in all_output_files:
-                        os.remove(rm_file)
+                program_function = getattr(programs, program)
+                if not os.path.isdir(sample_output + program):
+                        os.mkdir(sample_output + program)
+                        program_function(pipeline, genome, sample, inputs=program_input)
+                elif not os.listdir(sample_output + program):
                     program_function(pipeline, genome, sample, inputs=program_input)
+                else:
+                    if program == "TRUST4":
+                        output_file = sample+"_report.tsv"
+                    if os.path.isfile(sample_output+program+"/"+output_file):
+                        print(f"Non-empty {program} directory for {sample}: {program} already run.")
+                    else:
+                        all_output_files = glob.glob(sample_output+program+"/*")
+                        for rm_file in all_output_files:
+                            os.remove(rm_file)
+                        program_function(pipeline, genome, sample, inputs=program_input)
     parsl.wait_for_current_tasks()
 
 def run_mixcr_prep(pipeline, genome, program_input, sample):
-    assemblePartial_input = [programs.MiXCR_align(pipeline, genome, sample, inputs=program_input)]
+    dict_assemblePartial_futures = {}
+    dict_assemblePartial_futures[1] = [programs.MiXCR_align(pipeline, genome, sample, inputs=program_input)]
     for num in range(1, pipeline.rescue_num+1):
         if num == pipeline.rescue_num:
-            extendAlignments_input = [programs.MiXCR_assemblePartial(pipeline, genome, sample, str(num), assemblePartial_input)]
+            extendAlignments_input = [programs.MiXCR_assemblePartial(pipeline, genome, sample, str(num), inputs=dict_assemblePartial_futures[num])]
+            # print(extendAlignments_input[0].result())
+            print("rescue_num is "+str(num)+"\n")
         else:
-            assemblePartial_input = [programs.MiXCR_assemblePartial(pipeline, genome, sample, str(num), assemblePartial_input)]
-    assemble_input = [programs.MiXCR_extendAlignments(pipeline, genome, sample, str(pipeline.rescue_num), extendAlignments_input)]
-    return [programs.MiXCR_assemble(pipeline, genome, sample, assemble_input)]
+            dict_assemblePartial_futures[num+1] = [programs.MiXCR_assemblePartial(pipeline, genome, sample, str(num), inputs=dict_assemblePartial_futures[num])]
+            # print(assemblePartial_input[0].result())
+            print("rescue_num is "+str(num)+"\n")
+    assemble_input = [programs.MiXCR_extendAlignments(pipeline, genome, sample, str(pipeline.rescue_num), inputs=extendAlignments_input)]
+    return [programs.MiXCR_assemble(pipeline, genome, sample, inputs=assemble_input)]
 
 # def run_pipeline(genome, pipeline, genome_generate, align):
 #     '''
@@ -423,6 +437,7 @@ def list_run_parameters(pipeline, program_dir, CATT=False):
                         os.remove(rm_file)
         else:
             os.mkdir(program_dir + parameter)
+    print([parameter for parameter in list_receptors if parameter not in list_remove])
     return [parameter for parameter in list_receptors if parameter not in list_remove]
 
 if __name__ == "__main__":

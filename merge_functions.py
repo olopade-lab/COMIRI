@@ -51,6 +51,12 @@ def update_gene_name(list_genes):
     else:
         return list(map(lambda x: x.split("*")[0], list_genes))
 
+def fix_CATT_gene_name(gene_str):
+    if "|" in gene_str:
+        return gene_str.split("|")[1]
+    else:
+        return gene_str
+
 def pairwise2_list(list_prev, seq):
     align_score = -math.inf
     best_sequence = ""
@@ -86,9 +92,15 @@ def multiple_pairwise2(row_prev_seq, list_curr, list_columns):
 def merge_within(input_df, program):
     df_program = input_df.apply(verify_canonical, args=[program], axis=1)
     df_program.dropna(subset=['cdr3aa_'+program, 'cdr3dna_'+program], inplace=True)
-    df_program = df_program[~(df_program['Vgene_'+program].isnull()) & 
-                        ~(df_program['Jgene_'+program].isnull()) & 
+    # CATT often has "None" for gene names
+    if program == "CATT":
+        df_program = df_program[(~(df_program['Vgene_'+program].isnull()) | 
+                        ~(df_program['Jgene_'+program].isnull()) ) & 
                         (df_program['cdr3aa_'+program].str.len() > 6)]
+    else:
+        df_program = df_program[~(df_program['Vgene_'+program].isnull()) & 
+                            ~(df_program['Jgene_'+program].isnull()) & 
+                            (df_program['cdr3aa_'+program].str.len() > 6)]
     df_program_merged = pd.DataFrame(columns=['count_'+program,
                                     'Vgene_'+program,
                                     'Dgene_'+program,

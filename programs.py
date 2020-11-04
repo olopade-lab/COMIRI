@@ -10,7 +10,7 @@ def samtools_index(pipeline, bam_or_fasta, samtools_command, inputs=[]):
      
     if pipeline.run_mode == "docker":
         samtools_index_script = ("docker run --rm -v {input_dir}:/input "
-                        "{image} samtools {samtools_command} "
+                        "{image} {samtools_command} "
                         "/input/{input_file}").format(
                             input_dir=bam_or_fasta.rsplit("/", 1)[0],
                             image=pipeline.docker_dict["samtools"],
@@ -29,19 +29,24 @@ def samtools_index(pipeline, bam_or_fasta, samtools_command, inputs=[]):
     pipeline.write_log("Generating index file for {f}".format(f=bam_or_fasta.split("/")[-1]))
     return samtools_index_script
 
+# @bash_app
+# def STAR_align(pipeline, genome, sample_name, inputs=[], VDJer=False, stderr='std.err', stdout='std.out'):
+#     return 'echo "Hello World!"'
+
 @bash_app
 def STAR_align(pipeline, genome, sample_name, inputs=[], VDJer=False):
     import classes
-
+    # pipeline.write_log("STAR")
     # docker container: mgibio/star
     if VDJer:
         genome_version = "hg38"
     else:
         genome_version = genome.version
     num_threads = classes.get_threads(pipeline, "STAR")
-    specific_output = pipeline.output_dir+sample_name+"/STAR_align/"+genome_version+"/"+sample_name
+    specific_output = pipeline.output_dir+sample_name+"/STAR_align/"+genome_version
     specific_input = pipeline.fastq_dict[sample_name][0].rsplit("/", 1)[0]
     
+    # Added limitBAM
     if pipeline.run_mode == "docker":
         STAR_align_script = ("docker run --rm -v {specific_output}:/output "
                         "-v {specific_input}:/input "
@@ -100,16 +105,15 @@ def TRUST3(pipeline, genome, sample_name, parameter, inputs=[]):
     # TRUST runs with python 2 !! : "module load gcc/6.2.0 python/2.7.13 trust && "
     
     if pipeline.run_mode == "docker":
-        TRUST3_script = ("docker run --rm -v {specific_output}:/output "
-                        "-v {specific_input}:/input image "
+        TRUST3_script = ("docker run --user root --rm -v {specific_output}:/output "
+                        "-v {specific_input}:/input {image} "
                         "trust -f /input/{align_bam} -I 200 -g {genome} "
-                        "-o {out} {param} -E -c -n {num_threads}").format(
+                        "-o /output/ {param} -E -c -n {num_threads}").format(
                             specific_output=specific_output,
                             specific_input=specific_input,
                             image=pipeline.docker_dict["TRUST3"],
                             align_bam=bam_file,
                             genome=genome.version,
-                            out=specific_output,
                             param=dict_parameters[parameter],
                             num_threads=num_threads)
 
@@ -169,11 +173,11 @@ def MiXCR_assemblePartial(pipeline, genome, sample_name, rescue_num, inputs=[]):
     MiXCR_output = pipeline.output_dir + sample_name + "/MiXCR/"
     if pipeline.run_mode == "docker":
         MiXCR_assemblePartial_script = ("docker run --rm -v {specific_output}:/output "
-                            "{image} mixcr assemblePartial /output/{vcdja} "
+                            "{image} mixcr assemblePartial /output/{vdjca} "
                             "/output/{rescued}").format(specific_output=MiXCR_output,
                                                     image=pipeline.docker_dict["MiXCR"],
                                                     vdjca=sample_name+(".vdjca" if rescue_num == "1" else f"_rescued{str(int(rescue_num)-1)}.vdjca"),
-                                                    rescued=MiXCR_output+sample_name+"_rescued"+rescue_num+".vdjca")
+                                                    rescued=sample_name+"_rescued"+rescue_num+".vdjca")
     
     elif pipeline.run_mode == "singularity":
         pass
@@ -195,7 +199,7 @@ def MiXCR_extendAlignments(pipeline, genome, sample_name, rescue_num, inputs=[])
     MiXCR_output = pipeline.output_dir + sample_name + "/MiXCR/"
     if pipeline.run_mode == "docker":
         MiXCR_extendAlignments_script = ("docker run --rm -v {specific_output}:/output "
-                            "{image} mixcr extendAlignments /output/{rescued} "
+                            "{image} mixcr extend /output/{rescued} "
                             "/output/{extended}").format(specific_output=MiXCR_output,
                                                     image=pipeline.docker_dict["MiXCR"],
                                                     rescued=sample_name+f"_rescued{rescue_num}.vdjca",
@@ -205,7 +209,7 @@ def MiXCR_extendAlignments(pipeline, genome, sample_name, rescue_num, inputs=[])
         pass
 
     elif pipeline.run_mode == "local":
-        MiXCR_extendAlignments_script = ("{command} {path} extendAlignments {rescued} "
+        MiXCR_extendAlignments_script = ("{command} {path} extend {rescued} "
                                 "{extended}").format(command=classes.get_command(pipeline, "MiXCR"),
                                                     path=classes.get_path(pipeline, "MiXCR"),
                                                     rescued=MiXCR_output+sample_name+f"_rescued{rescue_num}.vdjca",
@@ -272,15 +276,23 @@ def MiXCR_exportClones(pipeline, genome, sample_name, parameter, inputs=[]):
 @bash_app
 def TRUST4(pipeline, genome, sample_name, inputs=[]):
     import classes
-    bam_file = (pipeline.bam_dir + sample_name + "/" + sample_name
-                + ".Aligned.sortedByCoord.out.bam")
-    TRUST4_script = ("{TRUST4_dir}run-trust4 -b {bam_file} -f "
-                    "{TRUST4_dir}{genome_version}_bcrtcr.fa "
-                    "--ref {TRUST4_dir}human_IMGT+C.fa "
-                    "-o {output_dir}").format(TRUST4_dir=pipeline.TRUST4_dir,
+    # Urgent, just docker for now...
+    num_threads = classes.get_threads(pipeline, "TRUST4")
+    specific_input = pipeline.output_dir + sample_name + "/STAR_align/" + genome.version
+    bam_file = sample_name + ".Aligned.sortedByCoord.out.bam"
+    specific_output = pipeline.output_dir + sample_name + "/TRUST4"
+    TRUST4_script = ("docker run --rm -v {input_dir}:/input "
+                    "-v {output_dir}:/output {image} "
+                    "run-trust4 -b /input/{bam_file} -f "
+                    "/TRUST4/{genome_version}_bcrtcr.fa "
+                    "--ref /TRUST4/human_IMGT+C.fa -t {threads} "
+                    "-o /output/{output_prefix}").format(output_dir=specific_output,
+                                                                input_dir=specific_input,
+                                                                image=pipeline.docker_dict["TRUST4"],
+                                                                threads=num_threads,
                                                                 bam_file=bam_file,
                                                                 genome_version=genome.version,
-                                                                output_dir=pipeline.output_dir+sample_name+"/TRUST4/"+sample_name)
+                                                                output_prefix=sample_name)
     pipeline.write_log("Running TRUST4 for {sample}".format(sample=sample_name))
     return TRUST4_script
 
@@ -359,16 +371,16 @@ def CATT(pipeline, genome, sample_name, parameter, inputs=[]):
                                                     image=pipeline.docker_dict["CATT"])
         if pipeline.single_end:
             CATT_script = docker_str + ("catt --chain {chain} -f /input/{fastq} "
-                                        "-o /output/{out_name} -t {threads}").format(chain=parameter,
+                                        "-o /output/{out_name} -t {threads} --bowt {threads}").format(chain=parameter,
                                                             fastq=pipeline.fastq_dict[sample_name][0].rsplit("/", 1)[-1],
-                                                            out_name=sample_name+"_"+parameter,
+                                                            out_name=sample_name,
                                                             threads=num_threads)
         else:
             CATT_script = docker_str + ("catt --chain {chain} --f1 /input/{R1_fastq} --f2 /input/{R2_fastq} "
-                                        "-o /output/{out_name} -t {threads}").format(chain=parameter,
+                                        "-o /output/{out_name} -t {threads} --bowt {threads}").format(chain=parameter,
                                                             R1_fastq=pipeline.fastq_dict[sample_name][0].rsplit("/", 1)[-1],
                                                             R2_fastq=pipeline.fastq_dict[sample_name][1].rsplit("/", 1)[-1],
-                                                            out_name=sample_name+"_"+parameter,
+                                                            out_name=sample_name,
                                                             threads=num_threads)
     
     elif pipeline.run_mode == "singularity":
@@ -377,7 +389,7 @@ def CATT(pipeline, genome, sample_name, parameter, inputs=[]):
     elif pipeline.run_mode == "local":
         if pipeline.single_end:
             CATT_script = ("{command} {path} --chain {chain} -f {fastq} "
-                            "-o {out_name} -t {threads}").format(command=classes.get_command(pipeline, "MiXCR"),
+                            "-o {out_name} -t {threads} --bowt {threads}").format(command=classes.get_command(pipeline, "MiXCR"),
                                                     path=classes.get_path(pipeline, "MiXCR"),
                                                     chain=parameter,
                                                     fastq=pipeline.fastq_dict[sample_name][0],
@@ -385,7 +397,7 @@ def CATT(pipeline, genome, sample_name, parameter, inputs=[]):
                                                     threads=num_threads)
         else:
             CATT_script = ("{command} {path} --chain {chain} --f1 {R1_fastq} --f2 {R2_fastq} "
-                            "-o {out_name} -t {threads}").format(command=classes.get_command(pipeline, "MiXCR"),
+                            "-o {out_name} -t {threads} --bowt {threads}").format(command=classes.get_command(pipeline, "MiXCR"),
                                                     path=classes.get_path(pipeline, "MiXCR"),
                                                     chain=parameter,
                                                     R1_fastq=pipeline.fastq_dict[sample_name][0],

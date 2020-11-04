@@ -21,7 +21,7 @@ import multiprocessing
 @bash_app
 def aws_STARGenome(url, output_dir):
     return f"aws s3 sync {url} {output_dir} --no-sign-request"
-    
+
 class Pipeline:
 
     def __init__(self, run_program, run_mode, receptor, single_end):
@@ -33,10 +33,10 @@ class Pipeline:
         self.docker_dict = {
             "MiXCR": "milaboratory/mixcr@sha256:26284253404ccc467ca39c60660b80eabe6f3bfa24063fc454860fa98c646c92",
             "TRUST3": "mgibio/trust@sha256:283c1102334a0c3fb51dd25b6cd053ece28bc30748045984ce190778588c7242",
-            "TRUST4": "",
+            "TRUST4": "olopadelab/trust4@sha256:c05fb0b75268f558a039a4adac3a935c921b52159877ea45d9532f686703f1e4",
             "CATT": "guobioinfolab/catt:1.8.1",
             "VDJer": "",
-            "STAR": "mgibio/star:2.7.0f",
+            "STAR": "mgibio/star:2.5.2b",
             "bamtools": "",
             "samtools": "mgibio/samtools:1.9"
         }
@@ -87,15 +87,19 @@ class Pipeline:
                     self.fastq_dict[sample] = fastq_specific
     
     def extract_json(self, json_name):
-        base_dir = '/'.join(os.path.abspath(__file__).split('/')[:-1])
-        json_file = os.path.join(base_dir, 'configs', '{}.json'.format(json_name))
-        if not os.path.isfile(json_file):
-            raise exceptions.IncorrectPathError("Cannot find the json file <{json}.json>.".format(config=json_name))
-        try:
-            self.config_dict = json.load(json_file)
-        except Exception as e:
-            raise exceptions.IncorrectInputFiles(("Could not load json from <{config}.json> :"
-                                                "\n {exception}.").format(config=json_name, exception=e))
+        if json_name is None:
+            self.config_dict = {}
+        else:
+            base_dir = '/'.join(os.path.abspath(__file__).split('/')[:-1])
+            json_file = os.path.join(base_dir, 'configs', '{}.json'.format(json_name))
+            if not os.path.isfile(json_file):
+                raise exceptions.IncorrectPathError("Cannot find the json file <{json_name}.json>.".format(json_name=json_name))
+            try:
+                json_fileobject = open(json_file, "r")
+                self.config_dict = json.load(json_fileobject)
+            except Exception as e:
+                raise exceptions.IncorrectInputFiles(("Could not load json from <{json_name}.json> :"
+                                                    "\n {exception}.").format(json_name=json_name, exception=e))
 
     def __getstate__(self):
         return self.__dict__
@@ -141,6 +145,7 @@ def get_threads(pipeline, program):
             num_threads = os.environ.get('PARSL_CORES', multiprocessing.cpu_count())
     else:
         num_threads = os.environ.get('PARSL_CORES', multiprocessing.cpu_count())
+    pipeline.write_log("getting threads"+str(num_threads))
     return num_threads
 
 def get_command(pipeline, program):
@@ -157,7 +162,7 @@ def get_path(pipeline, program):
     dict_path = {
         "MiXCR": "mixcr",
         "TRUST3": "trust",
-        "TRUST4": "./run-trust4",
+        "TRUST4": "run-trust4",
         "CATT": "catt",
         "VDJer": "vdjer",
         "STAR": "STAR",

@@ -10,7 +10,7 @@ def consensus(row):
     new_row = {"sample_name": row["sample_name"]}
     for col in ["cdr3dna", "Vgene", "Jgene", "Cgene", "Dgene"]:
         all_results = []
-        for program in ["MiXCR", "TRUST3", "TRUST4"]:
+        for program in ["MiXCR", "TRUST3", "TRUST4", "CATT"]:
             if isinstance(row[col+"_"+program], list):
                 all_results += row[col+"_"+program]
         if not len(all_results) == 0:
@@ -41,7 +41,7 @@ def consensus(row):
                     else:
                         all_count = []
                         total_count_mode = []
-                        for program in ["MiXCR", "TRUST3", "TRUST4"]:
+                        for program in ["MiXCR", "TRUST3", "TRUST4", "CATT"]:
                             if isinstance(row["count_"+program], list):
                                 all_count += [int(count) for count in row["count_"+program]]
                         for mode in modes:
@@ -65,20 +65,24 @@ def consensus(row):
         else:
             new_row[col] = float("NaN")
     all_count = []
-    for program in ["MiXCR", "TRUST3", "TRUST4"]:
+    for program in ["MiXCR", "TRUST3", "TRUST4", "CATT"]:
         if isinstance(row["count_"+program], list):
             all_count += [sum([int(count) for count in row["count_"+program]])]
     new_row["count"] = int(round(sum(all_count) / len(all_count), 0))
     return pd.Series(new_row)
 
+def quorum(row, list_algorithms, num_votes):
+    return ["Y" if not row["cdr3dna_"+algorithm].isna() else "N" for algorithm in list_algorithms].count("Y") >= num_votes
 
-df_merged = pd.read_csv("/Users/jbreynier/receptor_results/BCR_heavy_merged/all_BCR-heavy.csv")
+
+df_merged = pd.read_csv("/Users/jbreynier/results_benchmarking/RNASeq_SPX6730-2_TRA.csv")
 df_merged.loc[:, df_merged.columns != 'sample_name'] = df_merged.loc[:, df_merged.columns != 'sample_name'].apply(lambda x: x.str.split(","), axis=1)
+
 df_merged = df_merged[(~df_merged["cdr3dna_MiXCR"].isna() & ~df_merged["cdr3dna_TRUST3"].isna()) | 
                         (~df_merged["cdr3dna_MiXCR"].isna() & ~df_merged["cdr3dna_TRUST4"].isna()) |
                         (~df_merged["cdr3dna_TRUST3"].isna() & ~df_merged["cdr3dna_TRUST4"].isna())]
 df_consensus = df_merged.apply(consensus, axis=1)
 for column_name in df_consensus.columns:
     df_consensus[column_name] = df_consensus[column_name].apply(lambda ls: ','.join(map(str, ls)) if isinstance(ls, list) else ls)
-df_consensus.to_csv("/Users/jbreynier/receptor_results/BCR_heavy_merged/consensus_BCR-heavy.csv", index=False)
+df_consensus.to_csv("/Users/jbreynier/results_benchmarking/RNASeq_SPX6730-2_TRA_consensus.csv", index=False)
 

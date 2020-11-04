@@ -212,7 +212,7 @@ def merge_results(sample_dir, attribute):
     dict_TRUST4 = {"TCR": "T",
                     "BCR-heavy": "IGH",
                     "BCR-light": ("IGL", "IGK")}
-    df_merged = merge_functions.create_df(["MiXCR", "TRUST3", "TRUST4"])
+    df_merged = merge_functions.create_df(["MiXCR", "TRUST3", "TRUST4", "CATT"])
     for program in os.listdir(sample_dir):
         if program == "MiXCR":
             try:
@@ -328,6 +328,53 @@ def merge_results(sample_dir, attribute):
             except OSError:
                 print("TRUST4 {attribute} directory for {sample} does not have a _report.tsv file".format(attribute=attribute,
                                                                                                         sample=sample_name))
+
+        if program == "CATT":
+            if attribute == "TCR":
+                try:
+                    df_CATT_TRA = pd.read_csv(sample_dir+"/CATT/"+sample_name+".TRA.CDR3.CATT.csv",
+                                                sep=",",
+                                                usecols=['AAseq',
+                                                        'NNseq',
+                                                        'Vregion',
+                                                        'Jregion',
+                                                        'Frequency'])
+                    df_CATT_TRA.columns = ["cdr3aa_CATT",
+                                        "cdr3dna_CATT",
+                                        "Vgene_CATT",
+                                        "Jgene_CATT",
+                                        "count_CATT"]
+                    df_CATT_TRA["Dgene_CATT"] = ""
+                    df_CATT_TRA["Cgene_CATT"] = ""
+                    df_CATT_TRB = pd.read_csv(sample_dir+"/CATT/"+sample_name+".TRB.CDR3.CATT.csv",
+                                                sep=",",
+                                                usecols=['AAseq',
+                                                        'NNseq',
+                                                        'Vregion',
+                                                        'Jregion',
+                                                        'Dregion',
+                                                        'Frequency'])
+                    df_CATT_TRA.columns = ["cdr3aa_CATT",
+                                        "cdr3dna_CATT",
+                                        "Vgene_CATT",
+                                        "Jgene_CATT",
+                                        "Dgene_CATT",
+                                        "count_CATT"]
+                    df_CATT_TRB["Cgene_CATT"] = ""
+                    df_CATT = pd.concat([df_CATT_TRA, df_CATT_TRB])
+                    for gene in ["Vgene", "Dgene", "Jgene", "Cgene"]:
+                        df_CATT[gene+"_CATT"] = df_CATT[gene+"_CATT"].apply(merge_functions.fix_CATT_gene_name)
+                        df_CATT[gene+"_CATT"] = df_CATT[gene+"_CATT"].str.split(",")
+                        df_CATT[gene+"_CATT"] = df_CATT[gene+"_CATT"].apply(merge_functions.update_gene_name)
+                    df_CATT_merged = merge_functions.merge_within(df_CATT, "CATT")
+                    if df_merged.empty:
+                        df_merged = df_merged.append(df_CATT_merged, ignore_index=True)
+                    else:
+                        df_merged = merge_functions.merge_other(df_merged, df_CATT_merged, "CATT")
+                except OSError:
+                    print("CATT {attribute} directory for {sample} does not have a .CDR3.CATT.csv file".format(attribute=attribute,
+                                                                                                            sample=sample_name))
+
     for column_name in df_merged.columns:
         df_merged[column_name] = df_merged[column_name].apply(lambda ls: ','.join(map(str, ls)) if isinstance(ls, list) else ls)
     df_merged["sample_name"] = sample_name
@@ -342,7 +389,7 @@ for sample_dir in glob.glob("/scratch/jbreynier/NG_RNAseq_BCR-TCR/*/"):
     dict_TRUST4 = {"TCR": "T",
                     "BCR-heavy": "IGH",
                     "BCR-light": ("IGL", "IGK")}
-    for attribute in ["TCR", "BCR-heavy", "BCR-light"]:
+    for attribute in ["TCR"]:
         if not os.path.isfile(sample_dir+"/"+sample_dir.split("/")[-1]+"_"+attribute+".csv"):
             merge_results(sample_dir, attribute)
 
