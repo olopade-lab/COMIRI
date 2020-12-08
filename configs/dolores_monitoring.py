@@ -3,6 +3,7 @@ from parsl.executors import HighThroughputExecutor
 from parsl.launchers import SingleNodeLauncher
 from parsl.providers import SlurmProvider
 from parsl.addresses import address_by_hostname
+from parsl.monitoring.monitoring import MonitoringHub
 import os
 
 config = Config(
@@ -26,5 +27,11 @@ config = Config(
             ),
         ),
     ],
-    checkpoint_mode='task_exit'
+    monitoring=MonitoringHub(
+       hub_address=address_by_hostname(),
+       hub_port=55055,
+       monitoring_debug=False,
+       resource_monitoring_interval=10,
+   ),
+   checkpoint_mode='task_exit'
 )

@@ -1,25 +1,25 @@
 {
     "STAR": {
         "executor": null,
-        "threads": 1,
+        "threads": 4,
         "path": null,
         "command": null
     },
     "MiXCR": {
         "executor": null,
-        "threads": 1,
+        "threads": 4,
         "path": null,
         "command": null
     },
     "TRUST3": {
         "executor": null,
-        "threads": 1,
+        "threads": 4,
         "path": null,
         "command": null
     },
     "TRUST4": {
         "executor": null,
-        "threads": 1,
+        "threads": 4,
         "path": null,
         "command": null
     },
@@ -31,7 +31,7 @@
     },
     "CATT": {
         "executor": null,
-        "threads": 1,
+        "threads": 4,
         "path": null,
         "command": null
     }

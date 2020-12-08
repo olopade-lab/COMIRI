@@ -1,0 +1,1 @@
+nohup python runner.py -f "/cephfs/users/jbreynier/test_dataset_COMIRI/LIB-046*/*_R{1,2}.fastq" -m docker -c dolores_test_monitoring -r TCR -j local -p TRUST3 TRUST4 MiXCR CATT -g hg19 -o /cephfs/users/jbreynier/test_dataset_COMIRI_results/ &

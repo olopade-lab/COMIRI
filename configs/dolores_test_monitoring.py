@@ -3,6 +3,7 @@ from parsl.executors import HighThroughputExecutor
 from parsl.launchers import SingleNodeLauncher
 from parsl.providers import SlurmProvider
 from parsl.addresses import address_by_hostname
+from parsl.monitoring.monitoring import MonitoringHub
 import os
 
 config = Config(
@@ -18,7 +19,7 @@ config = Config(
                 worker_init=("source activate /cephfs/users/jbreynier/conda/parsl_env2 ; "
                             "export PYTHONPATH='{}:{{PYTHONPATH}}'").format(os.getcwd()),
                 init_blocks=1,
-                max_blocks=3,
+                max_blocks=10,
                 min_blocks=0,
                 nodes_per_block=1,
                 walltime='99:00:00',
@@ -26,5 +27,11 @@ config = Config(
             ),
         ),
     ],
-    checkpoint_mode='task_exit'
+    monitoring=MonitoringHub(
+       hub_address=address_by_hostname(),
+       hub_port=55055,
+       monitoring_debug=False,
+       resource_monitoring_interval=10,
+   ),
+   checkpoint_mode='task_exit'
 )
