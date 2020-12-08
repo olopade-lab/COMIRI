@@ -1,6 +1,6 @@
 # COMIRI
 
-__*Please note: development of this tool is still underway.*__
+__*Please note: this tool is not finished. This README will be updated as the tool is developped*__
 
 ## Introduction:
 
@@ -19,12 +19,18 @@ __*Please note: development of this tool is still underway.*__
 
 ### Features:
 
+<a href=''><img src='images/Parsl_logo.jpg' align="right" width="150" /></a>
+<a href=''><img src='images/Docker_logo.jpg' align="right" width="150" /></a>
+<a href=''><img src='images/Singularity_logo.jpg' align="right" width="150" /></a>
+
+
 * Single command to run all tools and dependencies, with adjustable parameters for each tool, filtering step and consensus method  
 * Possibility of running with Docker or Singularity containers, for increased portability and reproducibility  
 * Parallelization with [Parsl](https://parsl.readthedocs.io/en/stable/index.html), a flexible and scalable parallel programming library for Python. Parsl allows for a modular allocation of resources to run each step concurrently, while respecting any dependencies between programs    
 
 
 ## Installation:
+
 
 
 ## Usage:
