@@ -19,9 +19,7 @@ __*Please note: this tool is not finished. This README will be updated as the to
 
 ### Features:
 
-<a href=''><img src='images/Parsl_logo.jpg' align="right" width="150" /></a>
-<a href=''><img src='images/Docker_logo.jpg' align="right" width="150" /></a>
-<a href=''><img src='images/Singularity_logo.jpg' align="right" width="150" /></a>
+<a href=''><img src='images/Parsl_logo.jpg' align="right" width="150" /></a> <a href=''><img src='images/Docker_logo.jpg' align="right" width="150" /></a> <a href=''><img src='images/Singularity_logo.jpg' align="right" width="150" /></a>
 
 
 * Single command to run all tools and dependencies, with adjustable parameters for each tool, filtering step and consensus method  
