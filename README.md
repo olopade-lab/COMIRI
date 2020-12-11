@@ -6,11 +6,11 @@ __*Please note: this tool is not finished. This README will be updated as the to
 
 **COMIRI** (**CO**sensus **M**etacaller for **I**mmune **R**eceptor **I**dentification) automates the extraction of T-cell and B-cell CDR3 sequences from bulk RNA sequencing. The program can run the following algorithms:  
 * [CATT](https://github.com/GuoBioinfoLab/CATT)  
-* [ImRep](https://github.com/mandricigor/imrep)  
 * [MiXCR](https://mixcr.readthedocs.io/en/master/index.html)  
 * [TRUST3](https://bitbucket.org/liulab/ng-bcr-validate/src/master/TRUST3/)  
 * [TRUST4](https://github.com/liulab-dfci/TRUST4)  
 * [V'DJer](https://github.com/mozack/vdjer)  
+<!-- * [ImRep](https://github.com/mandricigor/imrep)   -->
 
 ## Overview:
 
@@ -28,11 +28,28 @@ __*Please note: this tool is not finished. This README will be updated as the to
 
 ## Installation:
 
-
+```
+pip install comiri
+```
 
 ## Usage:
 
+```
+comiri -f FASTQ_PATH -o OUTPUT_DIR <OPTIONS>
+```
 
+`-f, --fastq_path FASTQ_PATH` Path of the input fastq files  
+`-o, --output_dir OUTPUT_DIR` Path of the output directory  
+
+Options:
+`-h, --help` show this help message and exit  
+`-g, --genome_version {hg19,hg38}` Genome version to use  
+`-p, --run_program {TRUST3,TRUST4,MiXCR,VDJer,CATT}` List of programs to run  
+`-m, --run_mode {docker,singularity,local}` Run mode for pipeline  
+`-r, --receptor {TCR,BCR-heavy,BCR-light}` List of receptors to extract  
+`-c, --config CONFIG` Config file to use for running Parsl  
+`-j, --json JSON` JSON file to use for running Parsl  
+`-s, --single_end` Run in single-end mode  
 
 
 
