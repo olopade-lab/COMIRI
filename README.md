@@ -38,22 +38,22 @@ pip install comiri
 comiri -f FASTQ_PATH -o OUTPUT_DIR <OPTIONS>
 ```
 
-`-f, --fastq_path FASTQ_PATH` Path of the input fastq files  
-`-o, --output_dir OUTPUT_DIR` Path of the output directory  
+`-f, --fastq_path FASTQ_PATH`    Path of the input fastq files  
+`-o, --output_dir OUTPUT_DIR`    Path of the output directory  
 
-Options:
-`-h, --help` show this help message and exit  
-`-g, --genome_version {hg19,hg38}` Genome version to use  
-`-p, --run_program {TRUST3,TRUST4,MiXCR,VDJer,CATT}` List of programs to run  
-`-m, --run_mode {docker,singularity,local}` Run mode for pipeline  
-`-r, --receptor {TCR,BCR-heavy,BCR-light}` List of receptors to extract  
-`-c, --config CONFIG` Config file to use for running Parsl  
-`-j, --json JSON` JSON file to use for running Parsl  
-`-s, --single_end` Run in single-end mode  
+Options:  
+`-h, --help`    Show this help message and exit  
+`-g, --genome_version {hg19,hg38}`    Genome version to use  
+`-p, --run_program {TRUST3,TRUST4,MiXCR,VDJer,CATT}`    List of programs to run  
+`-m, --run_mode {docker,singularity,local}`    Run mode for pipeline  
+`-r, --receptor {TCR,BCR-heavy,BCR-light}`    List of receptors to extract  
+`-c, --config CONFIG`     Config file to use for running Parsl  
+`-j, --json JSON`    JSON file to use for running Parsl  
+`-s, --single_end`    Run in single-end mode  
 
 
 
-## 
+## Poster:
 
 [CSHL Biological Data Science Conference (2020)](https://meetings.cshl.edu/posters/data20/images/viewer.html?file=data_20_142.pdf)
 
